@@ -11,9 +11,15 @@ import UIKit
 class ViewController: UIViewController,SideBarDelegate {
     
     var sidebarShouldOpen : Bool = true
+    var animator : UIDynamicAnimator!
+    var menuVC : SideViewController!
+    var barWidth : CGFloat!
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+       
+        
         addLeftNavbarButton()
         self.view.backgroundColor = UIColor(patternImage: UIImage(named: "background")!)
         
@@ -25,6 +31,34 @@ class ViewController: UIViewController,SideBarDelegate {
         
         self.view.addGestureRecognizer(leftSwipe)
         self.view.addGestureRecognizer(rightSwipe)
+        
+        
+        
+        barWidth = UIScreen.mainScreen().bounds.size.width - (UIScreen.mainScreen().bounds.size.width/2)
+        
+        
+        menuVC = self.storyboard!.instantiateViewControllerWithIdentifier("SlidebarMenuViewController") as! SideViewController
+        menuVC.delegate = self
+        menuVC.view.backgroundColor = UIColor.clearColor()
+        
+        let blurView = UIVisualEffectView(effect: UIBlurEffect(style: UIBlurEffectStyle.Light))
+        blurView.frame = menuVC.view.bounds
+        menuVC.view.addSubview(blurView)
+        
+        
+        self.view.addSubview(menuVC.view)
+        self.addChildViewController(menuVC)
+        //menuVC.view.layoutIfNeeded()
+        
+        
+        //        menuVC.view.frame=CGRectMake(0 - UIScreen.mainScreen().bounds.size.width, 0, UIScreen.mainScreen().bounds.size.width, UIScreen.mainScreen().bounds.size.height);
+        
+        
+        menuVC.view.frame=CGRectMake(-barWidth, (self.navigationController?.navigationBar.frame.height)! + 20, barWidth, UIScreen.mainScreen().bounds.size.height);
+        
+         blurView.frame = menuVC.view.bounds
+        
+
         
         
     }
@@ -49,12 +83,14 @@ class ViewController: UIViewController,SideBarDelegate {
         if(sender.direction == .Left){
             
             if self.sidebarShouldOpen == false{
-                self.closeSlidebar()
+                self.openSlidebar(false)
             }
             
         }else{
+            
+            self.openSlidebar(true)
             if(self.sidebarShouldOpen == true){
-                 self.openSlidebar()
+                 self.openSlidebar(true)
             }
         }
     }
@@ -74,50 +110,72 @@ class ViewController: UIViewController,SideBarDelegate {
             var frameMenu : CGRect = viewMenuBack.frame
             frameMenu.origin.x = -1 * UIScreen.mainScreen().bounds.size.width
             viewMenuBack.frame = frameMenu
-            viewMenuBack.layoutIfNeeded()
+           // viewMenuBack.layoutIfNeeded()
             viewMenuBack.backgroundColor = UIColor.clearColor()
             }, completion: { (finished) -> Void in
                 viewMenuBack.removeFromSuperview()
-                self.sidebarShouldOpen = true
+              //  self.sidebarShouldOpen = true
         })
     }
     
-    func openSlidebar(){
-        let menuVC : SideViewController = self.storyboard!.instantiateViewControllerWithIdentifier("SlidebarMenuViewController") as! SideViewController
-        menuVC.delegate = self
-        menuVC.view.backgroundColor = UIColor.clearColor()
+    func openSlidebar(sidebarShouldOpen : Bool){
         
-        let blurView = UIVisualEffectView(effect: UIBlurEffect(style: UIBlurEffectStyle.Light))
-        blurView.frame = menuVC.view.bounds
-        menuVC.view.addSubview(blurView)
+              // sender.enabled = true
+        
+
+        
+//        UIView.animateWithDuration(0.3, animations: { () -> Void in
+//            menuVC.view.frame=CGRectMake(0, 0, barWidth, UIScreen.mainScreen().bounds.size.height);
+//            blurView.frame = menuVC.view.bounds
+//           // sender.enabled = true
+//            self.sidebarShouldOpen = false
+//            }, completion:nil)
+//
+        
+        self.animator = UIDynamicAnimator(referenceView: self.view)
+        
+        self.animator.removeAllBehaviors()
+        
+        self.sidebarShouldOpen = (sidebarShouldOpen) ? false : true
+        
+        let gravityX : CGFloat = (sidebarShouldOpen) ? 1.0 : -1.0
+        let boundaryX : CGFloat = (sidebarShouldOpen) ? barWidth : -barWidth
+        let magnitude : CGFloat = (sidebarShouldOpen) ? 20 : -20
+        
+        let gravityBehaviour:UIGravityBehavior = UIGravityBehavior(items: [menuVC.view])
+        gravityBehaviour.gravityDirection = CGVectorMake(gravityX, 0.0)
+        self.animator.addBehavior(gravityBehaviour)
+        
+        let collisionBehaviour:UICollisionBehavior = UICollisionBehavior(items: [menuVC.view])
+        collisionBehaviour.addBoundaryWithIdentifier("Sidebar Boundary", fromPoint: CGPointMake(boundaryX,20.0), toPoint: CGPointMake(boundaryX, self.view.frame.size.height))
+        self.animator.addBehavior(collisionBehaviour)
         
         
+        let pushBehaviour:UIPushBehavior = UIPushBehavior(items: [menuVC.view], mode: UIPushBehaviorMode.Instantaneous)
+        pushBehaviour.magnitude = magnitude
+        self.animator.addBehavior(pushBehaviour)
         
-        self.view.addSubview(menuVC.view)
-        self.addChildViewController(menuVC)
-        menuVC.view.layoutIfNeeded()
         
+        let sidebarBehaviour:UIDynamicItemBehavior = UIDynamicItemBehavior(items: [menuVC.view])
+        sidebarBehaviour.elasticity = 0.4
+        self.animator.addBehavior(sidebarBehaviour)
         
-        menuVC.view.frame=CGRectMake(0 - UIScreen.mainScreen().bounds.size.width, 0, UIScreen.mainScreen().bounds.size.width, UIScreen.mainScreen().bounds.size.height);
+       
+      //  self.sidebarShouldOpen = false
         
-        UIView.animateWithDuration(0.3, animations: { () -> Void in
-            menuVC.view.frame=CGRectMake(0, 0, UIScreen.mainScreen().bounds.size.width - (UIScreen.mainScreen().bounds.size.width/2), UIScreen.mainScreen().bounds.size.height);
-            blurView.frame = menuVC.view.bounds
-           // sender.enabled = true
-            self.sidebarShouldOpen = false
-            }, completion:nil)
+
     }
     
     func onSlideMenuButtonPressed(sender : UIButton){
         if (self.sidebarShouldOpen == false)
         {
             // To Hide Menu If it already there
-            self.closeSlidebar()
+            self.openSlidebar(false)
             return
         }
         else if(self.sidebarShouldOpen == true){
-            //sender.enabled = false
-            self.openSlidebar()
+           // sender.enabled = false
+            self.openSlidebar(true)
         }
        
        
